@@ -6,17 +6,23 @@ import time
 from datetime import date, timedelta
 import json
 import requests
+import zipfile
 
 
 class MyStreamListener(tweepy.StreamListener):
 
     def __init__(self, json_path, api=None):
         self.api = api or API()
+        self.counter = 0
         self.json_path = json_path
 
     def on_status(self, status):
         with open(self.json_path, 'a+', encoding='utf-8') as outfile:
             json.dump(status._json, outfile, ensure_ascii=False, indent=2)
+        self.counter += 1
+        if self.counter > 9999:
+            logging.info("Logged {0} statuses.".format(self.counter))
+            return False
 
     def on_error(self, error):
         if error.status_code == 420:
@@ -56,16 +62,16 @@ def setup():
 
 
 def mailer(log_path, json_path):
-    request_url = 'https://api.mailgun.net/v2/{0}/messages'.format(config.url)
+    request_url = 'https://api.eu.mailgun.net/v3/{0}/messages'.format(config.url) # use api.mailgun.net if you're not in EU region
     r = requests.post(request_url, auth=('api', config.key),
         data={
             'from': config.sender,
             'to': config.recipient,
-            'subject': "Today's data",
-            'text': "Today's data files and log"
+            'subject': "Today's Twitter scrape log",
+            'text': "Today's log attached"
         }, files=[
-            ('attachment', open(log_path)),
-            ('attachment', open(json_path))
+            ('attachment', open(log_path, 'rb')),
+            ('attachment', open(json_path, 'rb'))
         ]
     )
     if r.ok:
@@ -75,13 +81,28 @@ def mailer(log_path, json_path):
         logging.error(r.text)
 
 
+def zip_files(log_path, json_path):
+    log_zip = log_path[:-4] + "_log.zip"
+    json_zip = json_path[:-5] + "_data.zip"
+    with zipfile.ZipFile(log_zip, 'w') as zf:
+        zf.write(log_path, arcname=os.path.basename(log_path))
+    with zipfile.ZipFile(json_zip, 'w') as jzf:
+        jzf.write(json_path, arcname=os.path.basename(json_path))
+    return log_zip, json_zip
+
+
 def start_scrape():
     api, log_path, json_path = setup()
     logging.info("Opened Twitter connection.")
-    mysl = MyStreamListener(json_path, api)
-    mys = tweepy.Stream(auth=api.auth, listener=mysl)
-    mys.sample()
-    mailer(log_path, json_path)
+    try:
+        mysl = MyStreamListener(json_path, api)
+        mys = tweepy.Stream(auth=api.auth, listener=mysl)
+        mys.sample()
+    except Exception as e:
+        logging.error("Error in stream.")
+        logging.error(e.reason)
+    log_zip, json_zip = zip_files(log_path, json_path)
+    mailer(log_zip, json_zip)
 
 
 start_scrape()
