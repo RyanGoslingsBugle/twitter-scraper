@@ -81,14 +81,11 @@ def mailer(log_path, json_path):
         logging.error(r.text)
 
 
-def zip_files(log_path, json_path):
-    log_zip = log_path[:-4] + "_log.zip"
+def zip_files(json_path):
     json_zip = json_path[:-5] + "_data.zip"
-    with zipfile.ZipFile(log_zip, 'w') as zf:
-        zf.write(log_path, arcname=os.path.basename(log_path))
-    with zipfile.ZipFile(json_zip, 'w') as jzf:
+    with zipfile.ZipFile(json_zip, 'w', zipfile.ZIP_DEFLATED) as jzf:
         jzf.write(json_path, arcname=os.path.basename(json_path))
-    return log_zip, json_zip
+    return json_zip
 
 
 def start_scrape():
@@ -101,8 +98,8 @@ def start_scrape():
     except Exception as e:
         logging.error("Error in stream.")
         logging.error(e.reason)
-    log_zip, json_zip = zip_files(log_path, json_path)
-    mailer(log_zip, json_zip)
+    json_zip = zip_files(json_path)
+    mailer(log_path, json_zip)
 
 
 start_scrape()
