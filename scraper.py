@@ -38,17 +38,15 @@ class MyStreamListener(tweepy.StreamListener):
 
 def setup():
     # set date ranges
-    yesterday = date.today() - timedelta(days=1)
-    yesterday = yesterday.strftime('%Y-%m-%d')
     today = date.today().strftime('%Y-%m-%d')
     # get log file
     script_dir = os.path.dirname(__file__)
-    file_path = 'logs/' + yesterday + '.log'
+    file_path = 'logs/' + today + '.log'
     log_path = os.path.join(script_dir, file_path)
     logging.basicConfig(filename=log_path, filemode='a+', format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
     # get correct json file
     script_dir = os.path.dirname(__file__)
-    file_path = 'data/' + yesterday + '.json'
+    file_path = 'data/' + today + '.json'
     json_path = os.path.join(script_dir, file_path)
     # set Twitter api access
     try:
